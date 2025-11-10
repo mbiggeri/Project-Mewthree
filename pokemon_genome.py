@@ -1,26 +1,24 @@
 # pokemon_genome.py
 import random
-# ⛔ NO MORE 'from config import *'
 import itertools
 
 genome_counter = itertools.count()
 
 class PokemonGenome:
     def __init__(self, base_pokemon_data, config_data: dict, random_init=True):
-        self.genome_id = next(genome_counter)
-        self.fitness = 0
-        self.shared_fitness = 0
-        self.gauntlet_kos = 0
+        self.genome_id = next(genome_counter)   # Unique genome identifier
+        self.fitness = 0    # Overall fitness score
+        self.shared_fitness = 0 # Fitness adjusted for species sharing
         
         self.config_data = config_data
         
+        # Determine if this is a custom Pokemon
         self.is_custom = (base_pokemon_data.get('name') == "custom_god_pokemon")
 
-        # custom pokemon initialization
         if self.is_custom:
-            # Use your "Mewthree" name
+            # create a custom Pokemon with random attributes, and use "Mewthree" name
             self.name = "Mewthree" 
-            self.ability = base_pokemon_data.get('ability', 'Pressure')
+            self.ability = None
             # Get data pools from config
             self.learnset = self.config_data['MOVE_POOL'] 
             
@@ -34,6 +32,7 @@ class PokemonGenome:
                 self.moves = random.sample(self.learnset, 4)
                 self._randomize_evs()
                 self.nature = random.choice(list(self.config_data['NATURES'].keys()))
+                self.ability = random.choice(self.config_data['ABILITY_POOL'])
         else:
             self.name = base_pokemon_data['name']
             self.stats = base_pokemon_data['base_stats']
@@ -47,11 +46,13 @@ class PokemonGenome:
                 self._randomize_evs()
                 self.nature = random.choice(list(self.config_data['NATURES'].keys()))
         
+        # Ensure moves and types are sorted for consistency
         self.moves.sort()
         self.types.sort()
 
 
     def _normalize_dict(self, data_dict, max_sum):
+        """Normalizes the values in data_dict so that they sum to max_sum"""
         current_sum = sum(data_dict.values())
         if current_sum == 0: 
             for key in data_dict:
@@ -98,21 +99,22 @@ class PokemonGenome:
         """Applies a random mutation to the evolvable parts of the genome."""
         evolvable_parts = ['evs', 'moves', 'nature']
         if self.is_custom:
-            evolvable_parts.extend(['stats', 'types'])
+            evolvable_parts.extend(['stats', 'types', 'ability'])
             
         mutation_type = random.choice(evolvable_parts)
 
         if mutation_type == 'stats':
             stat1, stat2 = random.sample(list(self.stats.keys()), 2)
-            change = random.randint(1, 20)
+            max_change = self.config_data.get('MUTATION_STAT_CHANGE_MAX', 20)
+            change = random.randint(1, max_change)
             if self.stats[stat1] > change:
                 self.stats[stat1] -= change
                 self.stats[stat2] += change
         
         elif mutation_type == 'types':
+            # Replace one type with a new random type
             if self.types:
                 idx_to_replace = random.randint(0, len(self.types) - 1)
-                # Use config value
                 new_type = random.choice([t for t in self.config_data['POKEMON_TYPES'] if t not in self.types])
                 self.types[idx_to_replace] = new_type
             self.types.sort()
@@ -121,6 +123,7 @@ class PokemonGenome:
             self._randomize_evs()
 
         elif mutation_type == 'moves':
+            # Replace one move with a new move from the learnset
             if len(self.learnset) > 4:
                 idx_to_replace = random.randint(0, 3)
                 possible_new_moves = [m for m in self.learnset if m not in self.moves]
@@ -131,8 +134,17 @@ class PokemonGenome:
         elif mutation_type == 'nature':
             # Use config value
             self.nature = random.choice(list(self.config_data['NATURES'].keys()))
+        
+        elif mutation_type == 'ability':
+            # Find a new ability that is not the current one
+            possible_new_abilities = [
+                a for a in self.config_data['ABILITY_POOL'] if a != self.ability
+            ]
+            if possible_new_abilities:
+                self.ability = random.choice(possible_new_abilities)
 
     def __str__(self):
+        """String representation of the genome for easy debugging."""
         return (f"ID: {self.genome_id} | Name: {self.name.capitalize()}\n"
                 f"Types: {self.types}\n"
                 f"Stats: {self.stats}\n"

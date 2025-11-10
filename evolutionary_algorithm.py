@@ -5,41 +5,56 @@ import math
 from pokemon_genome import PokemonGenome
 from battle_evaluator import evaluate_fitness
 
+# Species class to manage genomes of the same species
 class Species:
     def __init__(self, representative: PokemonGenome):
+        """Initialize a species with a representative genome."""
         self.representative = copy.deepcopy(representative)
         self.genomes = [representative]
         self.best_fitness = representative.fitness
         self.generations_stagnant = 0
         self.offspring_to_spawn = 0
+        
     def add_genome(self, genome: PokemonGenome):
         self.genomes.append(genome)
+        
     def get_best_genome(self) -> PokemonGenome:
         return max(self.genomes, key=lambda g: g.fitness)
+    
     def update_stagnation(self):
+        """Update stagnation counter based on best fitness.
+        stagnation = number of generations without improvement."""
         current_best_fitness = self.get_best_genome().fitness
         if current_best_fitness > self.best_fitness:
             self.best_fitness = current_best_fitness
             self.generations_stagnant = 0
         else:
             self.generations_stagnant += 1
+            
     def calculate_shared_fitness(self):
+        """Calculate shared fitness for each genome in the species.
+        Shared fitness = fitness / number of genomes in species."""
         if not self.genomes: return
         n = len(self.genomes)
         for genome in self.genomes:
             genome.shared_fitness = genome.fitness / n
+            
     def cull(self, survival_threshold):
+        """Retain only the top portion of genomes based on shared fitness."""
         if not self.genomes: return
         self.genomes.sort(key=lambda g: g.shared_fitness, reverse=True)
         survivors_count = max(1, math.ceil(len(self.genomes) * survival_threshold))
         self.genomes = self.genomes[:survivors_count]
+        
     def select_parent(self) -> PokemonGenome:
+        """Tournament selection: randomly pick k genomes and return the best among them."""
         if not self.genomes: return None
         k = min(3, len(self.genomes))
         tournament_entrants = random.sample(self.genomes, k)
         return max(tournament_entrants, key=lambda g: g.shared_fitness)
 
 
+# Main Evolutionary Algorithm class
 class EvolutionaryAlgorithm:
     def __init__(self, base_pokemon_data, mode: str, config_data: dict):
         self.base_pokemon_data = base_pokemon_data
@@ -54,6 +69,7 @@ class EvolutionaryAlgorithm:
     async def run(self):
         print(f"--- Starting {self.mode.capitalize()} Mode Evolution for {self.base_pokemon_data['name'].capitalize()} ---")
         
+        # parameters initialization from config (TODO: pass these in constructor for UI selection if needed -check the logic-)
         semaphore = asyncio.Semaphore(self.config_data['MAX_CONCURRENT_EVALUATIONS'])
         generations = self.config_data['GENERATIONS']
         population_size = self.config_data['POPULATION_SIZE']
@@ -64,6 +80,7 @@ class EvolutionaryAlgorithm:
             async with semaphore:
                 await evaluate_fitness(genome, self.mode, self.config_data)
 
+        # Main evolutionary loop, in every loop we evaluate, speciate, cull, reproduce
         for gen in range(generations):
             self.generation = gen + 1
             print(f"\n--- Generation {self.generation}/{generations} ---")
@@ -77,6 +94,8 @@ class EvolutionaryAlgorithm:
             self._speciate_population()
             
             # 3. Calculate shared fitness and check for stagnation
+            # the theory is that if all species are stagnant we keep them all to avoid extinction
+            # otherwise we remove stagnant species
             total_avg_shared_fitness = 0
             surviving_species = []
             for s in self.species:
@@ -94,6 +113,9 @@ class EvolutionaryAlgorithm:
                 break
             
             # 4. Calculate offspring
+            # Determine number of offspring per species based on average shared fitness
+            # If total_avg_shared_fitness is 0 (all genomes have 0 fitness), distribute evenly
+            # otherwise proportionally
             total_offspring = 0
             for s in self.species:
                 if total_avg_shared_fitness > 0:
@@ -108,6 +130,9 @@ class EvolutionaryAlgorithm:
                 self.species[i % len(self.species)].offspring_to_spawn += 1
 
             # 5. Cull and Reproduce
+            # Create next generation by culling and reproducing within species
+            # Elitism: carry over the best genome of each species
+            # Ensure population size remains constant
             next_generation = []
             current_best_genome = max(self.population, key=lambda g: g.fitness)
             if not self.best_genome_so_far or current_best_genome.fitness > self.best_genome_so_far.fitness:
@@ -154,6 +179,9 @@ class EvolutionaryAlgorithm:
 
 
     def _speciate_population(self):
+        """Group genomes into species based on compatibility distance.
+        distance is calculated using weighted factors like stats, types, moves, EVs, nature.
+        (TODO: maybe distance can be calculated using only types differences for custom pokemons?)"""
         for s in self.species:
             s.genomes = [] 
         for genome in self.population:
@@ -175,12 +203,15 @@ class EvolutionaryAlgorithm:
         return "N/A"
 
     def _get_compatibility_distance(self, g1: PokemonGenome, g2: PokemonGenome) -> float:
+        """Calculate compatibility distance between two genomes.
+        (TODO: same as above, maybe simplify for custom pokemons)"""
         distance = 0.0
         c1 = self.config_data['C1_STATS']
         c2 = self.config_data['C2_TYPES']
         c3 = self.config_data['C3_MOVES']
         c4 = self.config_data['C4_EVS']
         c5 = self.config_data['C5_NATURE']
+        c6 = self.config_data.get('C6_ABILITY', 0.0)
         
         if g1.is_custom:
             stat_diff = 0
@@ -201,9 +232,25 @@ class EvolutionaryAlgorithm:
         distance += c4 * (ev_diff / (self.config_data['MAX_EVS'] * 2))
         if g1.nature != g2.nature:
             distance += c5
+        # Only compare abilities if both are custom Pokémon
+        if g1.is_custom and g2.is_custom:
+            if g1.ability != g2.ability:
+                distance += c6
         return distance
 
     def _crossover(self, p1: PokemonGenome, p2: PokemonGenome):
+        """Create a child genome by combining genes from two parents.
+        
+        Process:
+        1. **Nature**: Randomly select the Nature from either parent.
+        2. **Moves**: Combine all moves from both parents, remove duplicates, and
+           then randomly select up to 4 moves, ensuring consistency.
+        3. **EVs**: Average the EVs for each stat from the parents. Cap each
+           stat at 252 and then normalize the total EV sum to MAX_EVS.
+        4. **Custom-Only (Stats/Types)**: For custom Pokémon, average base stats
+           and re-normalize to MAX_BASE_STATS. Randomly select 1 or 2 types 
+           from the combined set of parent types.
+        """
         child = PokemonGenome(self.base_pokemon_data, self.config_data, random_init=False)
         child.nature = random.choice([p1.nature, p2.nature])
         combined_moves = list(set(p1.moves + p2.moves))
@@ -231,7 +278,7 @@ class EvolutionaryAlgorithm:
             child.evs[stat_to_reduce] -= reduction
             total_evs -= reduction
         if child.is_custom:
-            child.ability = p1.ability 
+            child.ability = random.choice([p1.ability, p2.ability])
             child.stats = {}
             total_stats = 0
             for stat in p1.stats:

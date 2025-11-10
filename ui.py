@@ -7,6 +7,7 @@ import asyncio
 import queue
 import sys
 import traceback
+import os
 
 from pokemon_genome import PokemonGenome
 from evolutionary_algorithm import EvolutionaryAlgorithm
@@ -43,7 +44,7 @@ class ChampionViewerWindow(tk.Toplevel):
         ttk.Label(main_frame, text=f"Champion: {self.genome.name.capitalize()}", 
                   font=("Helvetica", 18, "bold")).pack(pady=(0, 10))
         try:
-            primary_type = self.genome.types[0] if self.genome.types else "normal"
+            primary_type = "normal"
             sprite_path = f"sprites/{primary_type}.png"
             img = Image.open(sprite_path).resize((128, 128), Image.Resampling.LANCZOS)
             self.sprite_image = ImageTk.PhotoImage(img) 
@@ -56,7 +57,7 @@ class ChampionViewerWindow(tk.Toplevel):
         self.type_images = []
         for p_type in self.genome.types:
             try:
-                img = Image.open(f"icons/{p_type}.png").resize((64, 28))
+                img = Image.open(f"icons/{p_type}.png").resize((48, 48), Image.Resampling.LANCZOS)
                 self.type_images.append(ImageTk.PhotoImage(img))
                 ttk.Label(type_frame, image=self.type_images[-1]).pack(side=tk.LEFT, padx=5)
             except FileNotFoundError:
@@ -67,11 +68,6 @@ class ChampionViewerWindow(tk.Toplevel):
         
         ttk.Label(details_frame, text=f"Nature: {self.genome.nature}", font=("Helvetica", 11)).pack(anchor="w")
         ttk.Label(details_frame, text=f"Ability: {self.genome.ability}", font=("Helvetica", 11)).pack(anchor="w", pady=(5,0))
-        
-        # --- Display the KO score in the pop-up ---
-        gauntlet_size = len(defaultConfig.GAUNTLET)
-        ttk.Label(details_frame, text=f"Gauntlet KOs: {self.genome.gauntlet_kos} / {gauntlet_size}", 
-                  font=("Helvetica", 11, "bold")).pack(anchor="w", pady=(5,0))
 
         stats_text = "\nBase Stats (EVs)\n" + "-"*20
         for stat, value in self.genome.stats.items():
@@ -128,19 +124,17 @@ class EvolutionApp(tk.Tk):
         champions_tab = ttk.Frame(self.notebook)
         self.notebook.add(champions_tab, text="Final Champions")
         
-        cols = ("id", "name", "fitness", "kos") 
+        cols = ("id", "name", "fitness") 
         self.champion_tree = ttk.Treeview(champions_tab, columns=cols, show="headings")
         self.champion_tree.pack(fill=tk.BOTH, expand=True)
         
         self.champion_tree.heading("id", text="Genome ID")
         self.champion_tree.heading("name", text="Name")
         self.champion_tree.heading("fitness", text="Fitness")
-        self.champion_tree.heading("kos", text="Gauntlet KOs") # New heading
         
         self.champion_tree.column("id", width=80, anchor="center")
         self.champion_tree.column("name", width=150)
         self.champion_tree.column("fitness", width=100, anchor="e")
-        self.champion_tree.column("kos", width=100, anchor="center") # New column
         
         self.champion_tree.bind("<Double-1>", self.on_champion_double_click)
         ttk.Label(champions_tab, text="Double-click a champion to view details.").pack(pady=5)
@@ -166,7 +160,7 @@ class EvolutionApp(tk.Tk):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         param_groups = {
-            "NEAT Parameters": ["COMPATIBILITY_THRESHOLD", "STAGNATION_LIMIT", "SURVIVAL_THRESHOLD", "C1_STATS", "C2_TYPES", "C3_MOVES", "C4_EVS", "C5_NATURE"],
+            "NEAT Parameters": ["COMPATIBILITY_THRESHOLD", "STAGNATION_LIMIT", "SURVIVAL_THRESHOLD", "C1_STATS", "C2_TYPES", "C3_MOVES", "C4_EVS", "C5_NATURE", "C6_ABILITY"],
             "Evolution Parameters": ["MINIMAX_DEPTH", "POPULATION_SIZE", "GENERATIONS", "MUTATION_RATE", "ELITISM_COUNT", "MAX_CONCURRENT_EVALUATIONS"],
             "Pokémon Constraints": ["MAX_BASE_STATS", "MAX_EVS"]
         }
@@ -238,6 +232,7 @@ class EvolutionApp(tk.Tk):
         current_config["MOVE_POOL"] = defaultConfig.MOVE_POOL
         current_config["POKEMON_TYPES"] = defaultConfig.POKEMON_TYPES
         current_config["NATURES"] = defaultConfig.NATURES
+        current_config["ABILITY_POOL"] = defaultConfig.ABILITY_POOL
         current_config["GAUNTLET"] = defaultConfig.GAUNTLET
         current_config["SIMPLE_GAUNTLET"] = defaultConfig.SIMPLE_GAUNTLET
         return current_config
@@ -308,7 +303,7 @@ class EvolutionApp(tk.Tk):
                 '', 
                 'end', 
                 iid=champ.genome_id, 
-                values=(champ.genome_id, champ.name.capitalize(), f"{champ.fitness:.0f}", champ.gauntlet_kos)
+                values=(champ.genome_id, champ.name.capitalize(), f"{champ.fitness:.0f}")
             )
 
         # Plot the data

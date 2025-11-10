@@ -25,7 +25,7 @@ def _genome_to_sim_pokemon(genome: PokemonGenome) -> pb.Pokemon:
             ivs=ivs, evs=ev_list, item=None
         )
         sim_poke.name = genome.name
-        sim_poke.nickname = CUSTOM_POKEMON_NICKNAME # Use the variable
+        sim_poke.nickname = CUSTOM_POKEMON_NICKNAME # Use the variable defined above
         sim_poke.types = tuple(genome.types)
         if len(sim_poke.types) == 1:
             sim_poke.types = (sim_poke.types[0], None)
@@ -64,6 +64,8 @@ def _gauntlet_to_sim_pokemon(opponent_info: dict) -> pb.Pokemon:
     return opp_poke
 
 def get_max_base_power_move(battle: pb.Battle, player_trainer: pb.Trainer, opponent_trainer: pb.Trainer) -> list:
+    """ Selects the move with the highest base power available to the player's current Pokemon. 
+    This is a simple heuristic-based AI for a fast evaluation."""
     player_pokemon = player_trainer.current_poke
     available_moves = player_pokemon.get_available_moves()
     if not available_moves: return gd.STRUGGLE 
@@ -107,6 +109,10 @@ def _clone_pokemon_state(poke: pb.Pokemon) -> pb.Pokemon:
     return new_poke
 
 def _evaluate_state(battle: pb.Battle) -> int:
+    """ Evaluates the battle state from the perspective of trainer 1. 
+    A higher score indicates a better position for trainer 1. 
+    It works by comparing HP, stat boosts, and status conditions. 
+    (TODO: This can be improved with more factors.) """
     p1 = battle.t1.current_poke
     p2 = battle.t2.current_poke
     if not p1.is_alive: return -100000 
@@ -123,6 +129,10 @@ def _evaluate_state(battle: pb.Battle) -> int:
     return score
 
 def _minimax_recursive(battle: pb.Battle, depth: int, is_maximizing_player: bool, t1: pb.Trainer, t2: pb.Trainer, minimax_depth: int):
+    """ Minimax algorithm implementation for Pokemon battle state evaluation. 
+    This function recursively explores possible moves up to a certain depth
+    and evaluates the resulting battle states.
+    (TODO: This can be optimized with alpha-beta pruning, and commented more.) """
     if depth == 0 or battle.is_finished():
         return _evaluate_state(battle)
 
@@ -169,6 +179,8 @@ def _minimax_recursive(battle: pb.Battle, depth: int, is_maximizing_player: bool
 
 _MINIMAX_CONFIG_HACK = {}
 def get_best_move_minimax(battle: pb.Battle, player_trainer: pb.Trainer, opponent_trainer: pb.Trainer) -> list:
+    """ This function calls the minimax implementation to 
+    determine the best move for the player_trainer's current Pokemon. """
     global _MINIMAX_CONFIG_HACK
     config_data = _MINIMAX_CONFIG_HACK
     minimax_depth = config_data.get('MINIMAX_DEPTH', 1) 
@@ -177,6 +189,9 @@ def get_best_move_minimax(battle: pb.Battle, player_trainer: pb.Trainer, opponen
     
 
 def _get_best_move_minimax_impl(battle: pb.Battle, player_trainer: pb.Trainer, opponent_trainer: pb.Trainer, minimax_depth: int) -> list:
+    """ This function uses the minimax algorithm to determine the best move for the player_trainer's current Pokemon.
+    It simulates all possible moves for both the player and the opponent up to a specified depth
+    and evaluates the resulting battle states to choose the optimal move."""
     available_moves_player = player_trainer.current_poke.get_available_moves() or [Move(pb.PokeSim.get_single_move("struggle"))]
     available_moves_opponent = opponent_trainer.current_poke.get_available_moves() or [Move(pb.PokeSim.get_single_move("struggle"))]
 
@@ -225,6 +240,9 @@ def _get_best_move_minimax_impl(battle: pb.Battle, player_trainer: pb.Trainer, o
 
 
 async def evaluate_fitness(genome: PokemonGenome, mode: str, config_data: dict):
+    """ Evaluates the fitness of a given PokemonGenome by running it against a gauntlet of opponents.
+    The mode parameter determines whether to use the "simple" or "advanced" gauntlet and AI.
+    The fitness score is calculated based on the number of wins. """
     await asyncio.sleep(0) 
     pb.PokeSim.start()
     total_wins = 0
@@ -275,59 +293,17 @@ async def evaluate_fitness(genome: PokemonGenome, mode: str, config_data: dict):
             if battle.get_winner() == our_trainer:
                 total_wins += 1
 
-    fitness_score = (total_wins * 1000) + len(set(genome.types)) * 10 + len(set(genome.moves)) * 5
+    fitness_score = (total_wins * 1000)
     genome.fitness = fitness_score
     _MINIMAX_CONFIG_HACK = {}
     return fitness_score
 
-def _run_gauntlet_for_kos(genome: PokemonGenome, config_data: dict) -> int:
-    """
-    Runs a genome against the ADVANCED gauntlet 1 time per opponent
-    and counts the number of KOs (wins).
-    """
-    pb.PokeSim.start()
-    total_kos = 0
-    
-    # ALWAYS use the advanced gauntlet and AI for this test
-    current_gauntlet = config_data['GAUNTLET']
-    t1_ai = get_best_move_minimax
-    t2_ai = get_best_move_minimax
-    
-    # We must set the hack, as this function is called inside
-    # run_final_tournament, which already set it.
-    global _MINIMAX_CONFIG_HACK
-    _MINIMAX_CONFIG_HACK = config_data
-
-    for opponent_info in current_gauntlet:
-        try:
-            # We must re-create the pokemon for each battle
-            # to reset HP, etc.
-            our_pokemon = _genome_to_sim_pokemon(genome)
-            our_trainer = pb.Trainer("GenomeTrainer", [our_pokemon])
-            
-            opponent_pokemon = _gauntlet_to_sim_pokemon(opponent_info)
-            opponent_trainer = pb.Trainer(opponent_info["name"], [opponent_pokemon])
-        except Exception:
-            continue # Skip if a pokemon fails to create
-
-        battle = pb.Battle(our_trainer, opponent_trainer)
-        battle.start()
-
-        while not battle.is_finished():
-            t1_move = t1_ai(battle, battle.t1, battle.t2)
-            t2_move = t2_ai(battle, battle.t2, battle.t1)
-            try:
-                battle.turn(t1_move, t2_move)
-            except Exception:
-                break 
-        
-        # If our trainer won, it's a KO
-        if battle.get_winner() == our_trainer:
-            total_kos += 1
-            
-    return total_kos
 
 def run_final_tournament(champions: list, config_data: dict) -> PokemonGenome:
+    """ Runs a round-robin tournament among the provided champions.
+    Each champion battles every other champion once.
+    The champion with the most wins is declared the ultimate winner.
+    In case of a tie, the champion with the most KOs in the advanced gauntlet wins. """
     print(f"\n--- Starting Final Tournament with {len(champions)} Champions ---")
     if not champions:
         print("No champions to run tournament with.")

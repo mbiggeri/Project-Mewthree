@@ -18,19 +18,7 @@ The project is divided into several key Python files that work together to run t
 
 ### `ui.py`
 
-> **High-Level:** Defines the entire GUI for the application using tkinter. This is the user's control panel for running experiments. It separates concerns into different tabs.
-
-**Key Objects/Functions:**
-
-  * `EvolutionApp` (class): The main application window.
-  * `_create_widgets()`: Builds the main UI, including the control panel and the notebook with all the tabs.
-  * `build_hyperparameter_tab()`: Dynamically creates the "Hyperparameters" tab, allowing the user to edit all settings from `config.py`.
-  * `start_experiment()`: Gathers all settings from the UI and launches `run_experiment_thread` to prevent the UI from freezing.
-  * `run_experiment_thread()`: The background thread that creates an `EvolutionaryAlgorithm` instance, runs the evolution, and then calls `run_final_tournament`.
-  * `finish_experiment()`: Updates the UI when the thread is done, populating the "Final Champions" list and plotting the graph.
-  * `plot_evolution_graph()`: Uses matplotlib to render the convergence graph, showing best/average fitness and species count over generations.
-  * `ChampionViewerWindow` (class): A pop-up window that displays a detailed summary of a single "champion" genome, including its stats, types, moveset, and gauntlet KO count.
-  * `TextRedirector` (class): A utility class that redirects all console `print()` statements to a queue, allowing them to be displayed in real-time in the "Experiment Log" tab.
+> Defines the entire GUI for the application using tkinter. This is the user's control panel for running experiments. It separates concerns into different tabs. Designed and written entirely by Gemini because it's the less interesting part and I didn't want to spend time on it.
 
 ### `config.py`
 
@@ -47,7 +35,7 @@ This file contains no code, only global constants.
 
 ### `pokemon_genome.py`
 
-> **High-Level:** Defines the "chromosome" or genetic makeup of a single Pokémon. An object of this class represents one individual in the population and holds all the traits that the genetic algorithm can modify.
+> **High-Level:** Defines the "chromosome" of a single Pokémon. An object of this class represents one individual in the population and holds all the traits that the genetic algorithm can modify.
 
 **Key Objects/Functions:**
 
@@ -87,19 +75,11 @@ This file contains no code, only global constants.
 
 ### `generate_data.py`
 
-> **High-Level:** A one-time utility script used to populate `pokemon_data.py`. It connects to the public PokéAPI and downloads the stats, types, abilities, and Gen 4 learnsets for all Pokémon up to \#493 (Sinnoh). **This script is not run by the main application.**
-
-**Key Objects/Functions:**
-
-  * `generate_pokemon_data()`: The main function that fetches all data and writes it to the `pokemon_data.py` file.
+> A one-time utility script used to populate `pokemon_data.py`. It connects to the public PokéAPI and downloads the stats, types, abilities, and Gen 4 learnsets for all Pokémon up to \#493 (Sinnoh). **This script is not run by the main application.**
 
 ### `pokemon_data.py`
 
-> **High-Level:** A static data file that is the output of `generate_data.py`. It contains a single, massive dictionary, `POKEMON_DATABASE`, which maps Pokémon names to their in-game data. This file is used by the UI to populate the "Choose Pokémon" dropdown and by the `PokemonGenome` class to get the learnset and base stats for non-custom evolutions.
-
-### `README.md`
-
-This file. It provides documentation on the project's goal and structure.
+> A static data file that is the output of `generate_data.py`. It contains a single, massive dictionary, `POKEMON_DATABASE`, which maps Pokémon names to their in-game data. This file is used by the UI to populate the "Choose Pokémon" dropdown and by the `PokemonGenome` class to get the learnset and base stats for non-custom evolutions.
 
 -----
 
@@ -120,4 +100,52 @@ This file. It provides documentation on the project's goal and structure.
     ```
 
 3.  **Watch the Evolution**
-    The GUI will launch. Choose your Pokémon ("Mewthree" or a standard one), select your mode, and press "Start Evolution." The "Experiment Log" tab will show the live progress, and the "Convergence Graph" tab will update once the experiment is complete.
+    The GUI will launch. Choose your Pokémon ("Mewthree" or a standard one), select your mode, and press "Start Evolution.Optionally you can change the hyperparameters before starting evaluation. " The "Experiment Log" tab will show the live progress, and the "Convergence Graph" tab will update once the experiment is complete.
+-----
+
+## Useful theory reminders for understanding the code
+
+1.  **MiniMax**
+    MiniMax is a decision-making algorithm used in two-player, zero-sum games (like chess). It works by building a "tree" of possible future moves to find the optimal move. It assumes the "Max" player tries to maximize their score, while the "Min" player (the opponent) tries to minimize that score.
+
+2.  **Genetic Algorithms**
+    A Genetic Algorithm (GA) is a search strategy inspired by Charles Darwin's theory of natural selection, used to find optimal solutions to complex problems. It works by evolving a population of candidate solutions over generations using processes like Selection (survival of the fittest), Crossover (reproduction), and Mutation (random variation).
+
+3.  **NEAT**
+    NEAT is a specific type of Genetic Algorithm. Its key innovation is speciation—it automatically groups similar individuals into different "species." These species evolve independently, which helps protect new, potentially valuable innovations from being immediately out-competed, allowing them time to be refined.
+
+...
+-----
+
+## Pokèmon theory reminders
+A Pokémon's success in battle is determined by a combination of several factors:
+
+> **Types**: A Pokémon has one or two of 18 types. Type matchups dictate damage; for example, a Fire move deals double damage to a Grass Pokémon ("super-effective") but half damage to a Water Pokémon ("not very effective"). Some types are immune to others.
+
+> **Base Stats**: The six core stats (HP, Attack, Defense, Special Attack, Special Defense, and Speed) determine a Pokémon's innate power and durability.
+
+> **Moveset**: A Pokémon can only know four moves at a time. A well-balanced moveset is crucial for strategic options and type coverage.
+
+> **Ability**: A passive Ability can dramatically influence the battle, such as granting an immunity or boosting stats.
+
+> **Held Item**: A single held item can provide benefits like increasing attack power or restoring HP.
+
+> **Nature**: A Pokémon's Nature typically boosts one stat by 10% while lowering another by 10%.
+
+> **IVs and EVs**: These hidden mechanics customize a Pokémon's final stats.
+
+  1. *Individual Values (IVs)* are like genes, a value from 0-31 for each stat that determines inherent potential.
+
+  2. *Effort Values (EVs)* are training points used to manually boost stats. A Pokémon can have a maximum of 252 EVs in one stat and a total of 510 EVs across all stats.
+
+-----
+
+## Possible expansions
+
+> Including items
+
+> Including IVs in the algorithm, it's not a fact that setting them all to 31 will lead to better results (if we consider complex strategies or double battles, those who have followed competitive games a bit know that sometimes having 31 IV in speed is a disadvantage). for the simple case of the project I would say that it is irrelevant to put them all at 31.
+
+> Implement double battles and strategic combo research to consider advanced tactics instead of just damage output (thus improving the very basic MiniMax implementation)
+
+> You can suggest other alternatives...

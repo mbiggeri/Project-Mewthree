@@ -106,15 +106,17 @@ This file contains no code, only global constants.
 ## Useful theory reminders for understanding the code
 
 1.  **MiniMax**
+
     MiniMax is a decision-making algorithm used in two-player, zero-sum games (like chess). It works by building a "tree" of possible future moves to find the optimal move. It assumes the "Max" player tries to maximize their score, while the "Min" player (the opponent) tries to minimize that score.
 
 2.  **Genetic Algorithms**
+
     A Genetic Algorithm (GA) is a search strategy inspired by Charles Darwin's theory of natural selection, used to find optimal solutions to complex problems. It works by evolving a population of candidate solutions over generations using processes like Selection (survival of the fittest), Crossover (reproduction), and Mutation (random variation).
 
 3.  **NEAT**
+
     NEAT is a specific type of Genetic Algorithm. Its key innovation is speciation—it automatically groups similar individuals into different "species." These species evolve independently, which helps protect new, potentially valuable innovations from being immediately out-competed, allowing them time to be refined.
 
-...
 -----
 
 ## Pokèmon theory reminders

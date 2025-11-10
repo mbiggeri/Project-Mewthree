@@ -172,6 +172,12 @@ class EvolutionaryAlgorithm:
         for s in self.species:
             if s.genomes:
                 champions.append(s.get_best_genome())
+                
+        # If no champions survived, fall back to the best genome ever found.
+        if not champions and self.best_genome_so_far:
+            print(f"No surviving species. Returning the best genome found during the run (ID {self.best_genome_so_far.genome_id}).")
+            champions = [self.best_genome_so_far]
+        
         print(f"Found {len(champions)} champions for the final tournament.")
         
         # --- Return history along with champions ---

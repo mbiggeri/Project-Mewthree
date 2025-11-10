@@ -14,7 +14,7 @@ COMPATIBILITY_THRESHOLD = 2.5
 # will be removed (unless it's the last species).
 # **Higher Value**: Protects species longer, letting them explore.
 # **Lower Value**: Culls underperforming species quickly, focusing on success.
-STAGNATION_LIMIT = 5
+STAGNATION_LIMIT = 15
 
 # Controls the "selection pressure" *within* a species. After each
 # generation, only this percentage (e.g., 0.4 = 40%) of the *best*

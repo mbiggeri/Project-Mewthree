@@ -138,13 +138,18 @@ class EvolutionaryAlgorithm:
             if not self.best_genome_so_far or current_best_genome.fitness > self.best_genome_so_far.fitness:
                 self.best_genome_so_far = copy.deepcopy(current_best_genome)
 
-            print(f"Best fitness in gen: {current_best_genome.fitness:.2f} (Species {self._find_species_id(current_best_genome)})")
-            print(f"Best genome so far (Fitness: {self.best_genome_so_far.fitness:.2f}):\n{self.best_genome_so_far}")
-            print(f"Active Species: {len(self.species)}")
-            
-            # --- Record stats for this generation ---
-            if self.population: # Avoid division by zero if population crashes
+            avg_fitness = 0.0
+            if self.population: # Avoid division by zero
                 avg_fitness = sum(g.fitness for g in self.population) / len(self.population)
+
+            # --- Log stats for this generation ---
+            print(f"Best fitness in gen: {current_best_genome.fitness:.2f}")
+            print(f"Avg fitness in gen:  {avg_fitness:.2f}")
+            print(f"Active Species:      {len(self.species)}")
+            print(f"Best genome so far (Fitness: {self.best_genome_so_far.fitness:.2f}):\n{self.best_genome_so_far}")
+            
+            # --- Record stats for history plot ---
+            if self.population:
                 self.history.append({
                     'gen': self.generation,
                     'best_fitness': current_best_genome.fitness,

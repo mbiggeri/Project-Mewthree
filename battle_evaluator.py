@@ -61,6 +61,9 @@ def _gauntlet_to_sim_pokemon(opponent_info: dict) -> pb.Pokemon:
         gender="genderless", ability=opponent_info["ability"], nature=opponent_info["nature"],
         ivs=ivs, evs=ev_list, item=None
     )
+    opp_poke.calculate_stats_actual() 
+    opp_poke.max_hp = opp_poke.stats_actual[gs.HP]
+    opp_poke.cur_hp = opp_poke.stats_actual[gs.HP]
     return opp_poke
 
 def get_max_base_power_move(battle: pb.Battle, player_trainer: pb.Trainer, opponent_trainer: pb.Trainer) -> list:

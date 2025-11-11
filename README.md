@@ -1,5 +1,7 @@
 # Project Mewthree
 
+![Mewthree](/sprites/normal.png)
+
 ## Overview
 
 This project uses a genetic algorithm to evolve an "optimal" Pokémon, code-named "Mewthree." The algorithm can either start from scratch to design a new Pokémon's base stats, types, ability, moveset, and nature, or it can optimize the build (moves, nature, EVs) for an existing Pokémon from Generations 1-4.
@@ -151,3 +153,8 @@ A Pokémon's success in battle is determined by a combination of several factors
 > Implement double battles and strategic combo research to consider advanced tactics instead of just damage output (thus improving the very basic MiniMax implementation)
 
 > You can suggest other alternatives...
+-----
+
+## How did I simulate the battles?
+With this fantastic project here (actually limited to gen I-IV):
+https://github.com/hiimvincent/poke-battle-sim.git

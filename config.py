@@ -14,7 +14,7 @@ COMPATIBILITY_THRESHOLD = 2.5
 # will be removed (unless it's the last species).
 # **Higher Value**: Protects species longer, letting them explore.
 # **Lower Value**: Culls underperforming species quickly, focusing on success.
-STAGNATION_LIMIT = 15
+STAGNATION_LIMIT = 20
 
 # Controls the "selection pressure" *within* a species. After each
 # generation, only this percentage (e.g., 0.4 = 40%) of the *best*
@@ -77,7 +77,7 @@ MINIMAX_DEPTH = 2
 # to get stuck. Each generation takes *much longer* to evaluate.
 # **Lower Value**: Faster generations, but higher risk of losing good
 # genetic diversity or getting stuck on a suboptimal solution.
-POPULATION_SIZE = 75
+POPULATION_SIZE = 125
 
 # The total number of cycles (evaluate, cull, reproduce) the algorithm
 # will run. This is the main "timer" for the entire experiment.
@@ -88,13 +88,13 @@ GENERATIONS = 100
 # **Higher Value**: More chaos and new ideas. Good for exploration,
 # but can prevent the algorithm from "settling" on a good solution.
 # **Lower Value**: More focus on fine-tuning existing solutions.
-MUTATION_RATE = 0.3
+MUTATION_RATE = 0.5
 
 # When a 'stats' mutation occurs (for custom 'Mewthree'), this is the
 # max number of points moved from one random stat to another.
 # **Higher Value**: Faster, more drastic changes to stat builds.
 # **Lower Value**: Slower, more careful fine-tuning of stat builds.
-MUTATION_STAT_CHANGE_MAX = 20
+MUTATION_STAT_CHANGE_MAX = 50
 
 # The number of best genomes *per species* that are carried into the
 # next generation *unchanged* (no mutation, no crossover).
@@ -106,7 +106,7 @@ ELITISM_COUNT = 1
 # (which involve running multiple battles) to run in *parallel*.
 # **Higher Value**: Faster generations, *if* your CPU has enough cores.
 # **Lower Value**: Safer, runs fewer things at once.
-MAX_CONCURRENT_EVALUATIONS = 6
+MAX_CONCURRENT_EVALUATIONS = 8
 
 # --- Pokémon Constraints ---
 # These are the "rules of the game" that all genomes must follow.

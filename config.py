@@ -1,5 +1,3 @@
-# config.py
-
 # --- Evolution Mode Parameters ---
 # These parameters control the NEAT-style speciation process.
 
@@ -77,11 +75,11 @@ MINIMAX_DEPTH = 2
 # to get stuck. Each generation takes *much longer* to evaluate.
 # **Lower Value**: Faster generations, but higher risk of losing good
 # genetic diversity or getting stuck on a suboptimal solution.
-POPULATION_SIZE = 125
+POPULATION_SIZE = 75
 
 # The total number of cycles (evaluate, cull, reproduce) the algorithm
 # will run. This is the main "timer" for the entire experiment.
-GENERATIONS = 100
+GENERATIONS = 25
 
 # The chance (e.g., 0.3 = 30%) that a new child genome will have a
 # *random change* (e.g., new move, different EVs, mutated stats).
@@ -108,13 +106,18 @@ ELITISM_COUNT = 1
 # **Lower Value**: Safer, runs fewer things at once.
 MAX_CONCURRENT_EVALUATIONS = 8
 
+# Controls how many opponents from the gauntlet list are battled.
+# 10 = Battle first 10 opponents (Faster).
+# 20 = Battle all (Slower, more accurate).
+GAUNTLET_SIZE = 10
+
 # --- Pokémon Constraints ---
 # These are the "rules of the game" that all genomes must follow.
 
 # The "Base Stat Total" (BST) for custom 'Mewthree' genomes.
 # All base stats (HP, Atk, Def, etc.) must sum to this value.
 # This defines the "power level" of the created Pokémon.
-MAX_BASE_STATS = 600
+MAX_BASE_STATS = 450
 
 # The "legal" limit for total EVs in competitive Pokémon.
 # The algorithm will ensure all EV spreads sum to this value or less.

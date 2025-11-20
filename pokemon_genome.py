@@ -1,4 +1,3 @@
-# pokemon_genome.py
 import random
 import itertools
 

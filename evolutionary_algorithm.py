@@ -66,7 +66,7 @@ class EvolutionaryAlgorithm:
         self.generation = 0
         self.history = []
 
-    async def run(self):
+    async def run(self, progress_callback=None):
         print(f"--- Starting {self.mode.capitalize()} Mode Evolution for {self.base_pokemon_data['name'].capitalize()} ---")
         
         # parameters initialization from config (TODO: pass these in constructor for UI selection if needed -check the logic-)
@@ -84,10 +84,26 @@ class EvolutionaryAlgorithm:
         for gen in range(generations):
             self.generation = gen + 1
             print(f"\n--- Generation {self.generation}/{generations} ---")
+            
+            # Progress tracking logic
+            completed_evals = 0
+            total_evals = len(self.population)
+            
+            # Reset bar at start of gen
+            if progress_callback:
+                progress_callback(0, total_evals)
+
+            # Wrapper to update progress after evaluation
+            async def tracked_evaluator(genome):
+                nonlocal completed_evals
+                await limited_evaluator(genome)
+                completed_evals += 1
+                if progress_callback:
+                    progress_callback(completed_evals, total_evals)
 
             # 1. Evaluate fitness
             print(f"Evaluating population fitness ({self.config_data['MAX_CONCURRENT_EVALUATIONS']} at a time)...")
-            tasks = [limited_evaluator(genome) for genome in self.population]
+            tasks = [tracked_evaluator(genome) for genome in self.population]
             await asyncio.gather(*tasks)
             
             # 2. Speciate

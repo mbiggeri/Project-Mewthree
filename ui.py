@@ -1,4 +1,3 @@
-# ui.py
 import tkinter as tk
 from tkinter import ttk, scrolledtext, simpledialog
 from PIL import Image, ImageTk
@@ -89,10 +88,12 @@ class EvolutionApp(tk.Tk):
         self.pokemon_db = pokemon_db
         self.champions_data = {}
         self.log_queue = queue.Queue()
+        self.progress_queue = queue.Queue()
         self.stdout_redirector = TextRedirector(self.log_queue)
         self.param_vars = {}
         self._create_widgets()
         self.after(100, self._process_log_queue)
+        self.after(100, self._process_progress_queue)
 
     def _create_widgets(self):
         control_frame = ttk.Frame(self, padding="10", width=300)
@@ -118,6 +119,16 @@ class EvolutionApp(tk.Tk):
         log_tab = ttk.Frame(self.notebook)
         self.log_text = scrolledtext.ScrolledText(log_tab, wrap=tk.WORD, font=("Courier", 9))
         self.log_text.pack(fill=tk.BOTH, expand=True)
+        
+        # Progress Bar Section
+        progress_frame = ttk.Frame(log_tab, padding=5)
+        progress_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        ttk.Label(progress_frame, text="Generation Progress:").pack(side=tk.LEFT, padx=5)
+        self.progress_bar = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, mode='determinate')
+        self.progress_bar.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        self.progress_label = ttk.Label(progress_frame, text="0/0")
+        self.progress_label.pack(side=tk.LEFT, padx=5)
+        
         self.notebook.add(log_tab, text="Experiment Log")
 
         # --- Champions Tab ---
@@ -161,7 +172,7 @@ class EvolutionApp(tk.Tk):
         scrollbar.pack(side="right", fill="y")
         param_groups = {
             "NEAT Parameters": ["COMPATIBILITY_THRESHOLD", "STAGNATION_LIMIT", "SURVIVAL_THRESHOLD", "C1_STATS", "C2_TYPES", "C3_MOVES", "C4_EVS", "C5_NATURE", "C6_ABILITY"],
-            "Evolution Parameters": ["MINIMAX_DEPTH", "POPULATION_SIZE", "GENERATIONS", "MUTATION_RATE", "ELITISM_COUNT", "MAX_CONCURRENT_EVALUATIONS"],
+            "Evolution Parameters": ["MINIMAX_DEPTH", "POPULATION_SIZE", "GENERATIONS", "MUTATION_RATE", "ELITISM_COUNT", "MAX_CONCURRENT_EVALUATIONS", "GAUNTLET_SIZE"],
             "Pokémon Constraints": ["MAX_BASE_STATS", "MAX_EVS"]
         }
         self.param_vars.clear()
@@ -254,14 +265,16 @@ class EvolutionApp(tk.Tk):
             self.base_pokemon = self.pokemon_db[name_key]
             self.base_pokemon['name'] = name_key
         self.log_text.insert(tk.END, "Starting new experiment thread...\n")
+        def progress_callback(completed, total):
+            self.progress_queue.put((completed, total))
         self.worker_thread = threading.Thread(
             target=self.run_experiment_thread,
-            args=(self.base_pokemon, self.evolution_mode, self.current_config_data),
+            args=(self.base_pokemon, self.evolution_mode, self.current_config_data, progress_callback),
             daemon=True
         )
         self.worker_thread.start()
 
-    def run_experiment_thread(self, base_pokemon_data, mode, config_data):
+    def run_experiment_thread(self, base_pokemon_data, mode, config_data, progress_cb):
         original_stdout = sys.stdout
         original_stderr = sys.stderr
         sys.stdout = self.stdout_redirector
@@ -273,7 +286,7 @@ class EvolutionApp(tk.Tk):
             print(f"\nStarting {mode} evolution for {base_pokemon_data['name'].capitalize()}...")
             print("Using current Hyperparameters.")
             ea = EvolutionaryAlgorithm(base_pokemon_data, mode, config_data)
-            species_champions, history_data = asyncio.run(ea.run())
+            species_champions, history_data = asyncio.run(ea.run(progress_cb))
             if species_champions:
                 print("\n--- Evolution Complete. Starting Final Tournament ---")
                 tournament_winner = run_final_tournament(species_champions, config_data)
@@ -292,6 +305,17 @@ class EvolutionApp(tk.Tk):
             sys.stderr = original_stderr
             self.after(0, self.finish_experiment, species_champions, tournament_winner, history_data)
 
+    def _process_progress_queue(self):
+        try:
+            while True:
+                completed, total = self.progress_queue.get_nowait()
+                self.progress_bar['maximum'] = total
+                self.progress_bar['value'] = completed
+                self.progress_label['text'] = f"{completed}/{total}"
+        except queue.Empty:
+            pass
+        self.after(100, self._process_progress_queue)
+        
     def finish_experiment(self, champions, winner, history_data):
         print("--- Experiment finished. Updating UI. ---")
         self.start_button.config(state=tk.NORMAL, text="Start Evolution")

@@ -5,7 +5,7 @@
 # distance *below* this value are considered the same species.
 # **Higher Value**: Creates FEWER, broader, more diverse species.
 # **Lower Value**: Creates MORE, specific, niche species.
-COMPATIBILITY_THRESHOLD = 2.5
+COMPATIBILITY_THRESHOLD = 3.0
 
 # The "patience" of the algorithm. If a species' best fitness does not
 # improve for this many generations, it's considered "stagnant" and
@@ -64,10 +64,7 @@ C6_ABILITY = 0.5
 # --- Evolutionary Algorithm Parameters ---
 
 # The "look-ahead" for the 'Advanced Mode' (Minimax) AI.
-# **Depth 1**: "What's my best move *right now*?" (Fast, but weak).
-# **Depth 2**: "What's my best move *after* I see their best reply?" (Smarter).
-# **Depth 3+**: Becomes *exponentially* slower. Depth 2 is a good balance.
-MINIMAX_DEPTH = 2
+MINIMAX_DEPTH = 4
 
 # Total number of "individuals" in the entire gene pool, distributed
 # across all species.
@@ -109,7 +106,7 @@ MAX_CONCURRENT_EVALUATIONS = 8
 # Controls how many opponents from the gauntlet list are battled.
 # 10 = Battle first 10 opponents (Faster).
 # 20 = Battle all (Slower, more accurate).
-GAUNTLET_SIZE = 10
+GAUNTLET_SIZE = 20
 
 # --- Pokémon Constraints ---
 # These are the "rules of the game" that all genomes must follow.
@@ -117,7 +114,7 @@ GAUNTLET_SIZE = 10
 # The "Base Stat Total" (BST) for custom 'Mewthree' genomes.
 # All base stats (HP, Atk, Def, etc.) must sum to this value.
 # This defines the "power level" of the created Pokémon.
-MAX_BASE_STATS = 450
+MAX_BASE_STATS = 350
 
 # The "legal" limit for total EVs in competitive Pokémon.
 # The algorithm will ensure all EV spreads sum to this value or less.

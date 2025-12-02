@@ -187,11 +187,10 @@ class EvolutionApp(ttk.Window):
         self.pokemon_combo.pack(fill=X, pady=5)
 
         ttk.Label(sidebar, text="SIMULATION ENGINE", font=("Roboto", 10, "bold"), bootstyle="inverse-secondary").pack(anchor=W, pady=(20, 5))
-        self.mode_var = tk.StringVar(value="simple")
         
-        # Custom styled radio buttons
-        ttk.Radiobutton(sidebar, text="Simple (Max-Dmg)", variable=self.mode_var, value="simple", bootstyle="light-toolbutton").pack(fill=X, pady=2)
-        ttk.Radiobutton(sidebar, text="Advanced (Minimax)", variable=self.mode_var, value="advanced", bootstyle="light-toolbutton").pack(fill=X, pady=2)
+        # LOCKED TO MINIMAX
+        ttk.Label(sidebar, text="Advanced (Minimax)", font=("Roboto", 9), bootstyle="inverse-secondary").pack(anchor=W)
+        ttk.Label(sidebar, text="Scoring: Diminishing Returns", font=("Roboto", 8, "italic"), bootstyle="inverse-secondary").pack(anchor=W)
 
         # Big Action Button
         self.start_button = ttk.Button(
@@ -204,7 +203,7 @@ class EvolutionApp(ttk.Window):
         self.start_button.pack(pady=40, ipady=10)
 
         # Footer in sidebar
-        ttk.Label(sidebar, text="v0.999 Unstable", font=("Consolas", 8), bootstyle="inverse-secondary").pack(side=BOTTOM, anchor=W)
+        ttk.Label(sidebar, text="v1.0 Stable", font=("Consolas", 8), bootstyle="inverse-secondary").pack(side=BOTTOM, anchor=W)
 
         # 2. Main Content Area
         content_area = ttk.Frame(self, padding=10)
@@ -396,7 +395,6 @@ class EvolutionApp(ttk.Window):
         self.plot_evolution_graph(None)
         
         selected_pokemon_name = self.pokemon_var.get()
-        self.evolution_mode = self.mode_var.get()
         self.current_config_data = self.get_current_config()
         
         if selected_pokemon_name == "Mewthree (From Scratch)":
@@ -413,12 +411,12 @@ class EvolutionApp(ttk.Window):
             
         self.worker_thread = threading.Thread(
             target=self.run_experiment_thread,
-            args=(self.base_pokemon, self.evolution_mode, self.current_config_data, progress_callback),
+            args=(self.base_pokemon, self.current_config_data, progress_callback),
             daemon=True
         )
         self.worker_thread.start()
 
-    def run_experiment_thread(self, base_pokemon_data, mode, config_data, progress_cb):
+    def run_experiment_thread(self, base_pokemon_data, config_data, progress_cb):
         original_stdout = sys.stdout
         original_stderr = sys.stderr
         sys.stdout = self.stdout_redirector
@@ -428,9 +426,10 @@ class EvolutionApp(ttk.Window):
         history_data = []
         try:
             print(f">>> TARGET: {base_pokemon_data['name'].upper()}")
-            print(f">>> MODE: {mode.upper()}")
+            print(f">>> MODE: ADVANCED (MINIMAX)")
             print(">>> LOADING GENETIC PARAMETERS...")
-            ea = EvolutionaryAlgorithm(base_pokemon_data, mode, config_data)
+            # Removed mode argument
+            ea = EvolutionaryAlgorithm(base_pokemon_data, config_data)
             species_champions, history_data = asyncio.run(ea.run(progress_cb))
             if species_champions:
                 print("\n>>> EVOLUTION COMPLETE.")

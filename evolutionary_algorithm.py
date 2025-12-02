@@ -56,9 +56,9 @@ class Species:
 
 # Main Evolutionary Algorithm class
 class EvolutionaryAlgorithm:
-    def __init__(self, base_pokemon_data, mode: str, config_data: dict):
+    def __init__(self, base_pokemon_data, config_data: dict):
         self.base_pokemon_data = base_pokemon_data
-        self.mode = mode
+        # mode is removed; we always use advanced
         self.config_data = config_data
         self.population = [PokemonGenome(self.base_pokemon_data, self.config_data) for _ in range(self.config_data['POPULATION_SIZE'])]
         self.species = []
@@ -67,9 +67,8 @@ class EvolutionaryAlgorithm:
         self.history = []
 
     async def run(self, progress_callback=None):
-        print(f"--- Starting {self.mode.capitalize()} Mode Evolution for {self.base_pokemon_data['name'].capitalize()} ---")
+        print(f"--- Starting Evolution for {self.base_pokemon_data['name'].capitalize()} ---")
         
-        # parameters initialization from config (TODO: pass these in constructor for UI selection if needed -check the logic-)
         semaphore = asyncio.Semaphore(self.config_data['MAX_CONCURRENT_EVALUATIONS'])
         generations = self.config_data['GENERATIONS']
         population_size = self.config_data['POPULATION_SIZE']
@@ -78,9 +77,10 @@ class EvolutionaryAlgorithm:
 
         async def limited_evaluator(genome):
             async with semaphore:
-                await evaluate_fitness(genome, self.mode, self.config_data)
+                # Removed mode argument
+                await evaluate_fitness(genome, self.config_data)
 
-        # Main evolutionary loop, in every loop we evaluate, speciate, cull, reproduce
+        # Main evolutionary loop
         for gen in range(generations):
             self.generation = gen + 1
             print(f"\n--- Generation {self.generation}/{generations} ---")
@@ -89,11 +89,9 @@ class EvolutionaryAlgorithm:
             completed_evals = 0
             total_evals = len(self.population)
             
-            # Reset bar at start of gen
             if progress_callback:
                 progress_callback(0, total_evals)
 
-            # Wrapper to update progress after evaluation
             async def tracked_evaluator(genome):
                 nonlocal completed_evals
                 await limited_evaluator(genome)
@@ -110,8 +108,6 @@ class EvolutionaryAlgorithm:
             self._speciate_population()
             
             # 3. Calculate shared fitness and check for stagnation
-            # the theory is that if all species are stagnant we keep them all to avoid extinction
-            # otherwise we remove stagnant species
             total_avg_shared_fitness = 0
             surviving_species = []
             for s in self.species:
@@ -129,9 +125,6 @@ class EvolutionaryAlgorithm:
                 break
             
             # 4. Calculate offspring
-            # Determine number of offspring per species based on average shared fitness
-            # If total_avg_shared_fitness is 0 (all genomes have 0 fitness), distribute evenly
-            # otherwise proportionally
             total_offspring = 0
             for s in self.species:
                 if total_avg_shared_fitness > 0:
@@ -146,16 +139,13 @@ class EvolutionaryAlgorithm:
                 self.species[i % len(self.species)].offspring_to_spawn += 1
 
             # 5. Cull and Reproduce
-            # Create next generation by culling and reproducing within species
-            # Elitism: carry over the best genome of each species
-            # Ensure population size remains constant
             next_generation = []
             current_best_genome = max(self.population, key=lambda g: g.fitness)
             if not self.best_genome_so_far or current_best_genome.fitness > self.best_genome_so_far.fitness:
                 self.best_genome_so_far = copy.deepcopy(current_best_genome)
 
             avg_fitness = 0.0
-            if self.population: # Avoid division by zero
+            if self.population:
                 avg_fitness = sum(g.fitness for g in self.population) / len(self.population)
 
             # --- Log stats for this generation ---
@@ -194,21 +184,16 @@ class EvolutionaryAlgorithm:
             if s.genomes:
                 champions.append(s.get_best_genome())
                 
-        # If no champions survived, fall back to the best genome ever found.
         if not champions and self.best_genome_so_far:
             print(f"No surviving species. Returning the best genome found during the run (ID {self.best_genome_so_far.genome_id}).")
             champions = [self.best_genome_so_far]
         
         print(f"Found {len(champions)} champions for the final tournament.")
         
-        # --- Return history along with champions ---
         return champions, self.history
 
 
     def _speciate_population(self):
-        """Group genomes into species based on compatibility distance.
-        distance is calculated using weighted factors like stats, types, moves, EVs, nature.
-        (TODO: maybe distance can be calculated using only types differences for custom pokemons?)"""
         for s in self.species:
             s.genomes = [] 
         for genome in self.population:
@@ -230,8 +215,6 @@ class EvolutionaryAlgorithm:
         return "N/A"
 
     def _get_compatibility_distance(self, g1: PokemonGenome, g2: PokemonGenome) -> float:
-        """Calculate compatibility distance between two genomes.
-        (TODO: same as above, maybe simplify for custom pokemons)"""
         distance = 0.0
         c1 = self.config_data['C1_STATS']
         c2 = self.config_data['C2_TYPES']
@@ -266,18 +249,6 @@ class EvolutionaryAlgorithm:
         return distance
 
     def _crossover(self, p1: PokemonGenome, p2: PokemonGenome):
-        """Create a child genome by combining genes from two parents.
-        
-        Process:
-        1. **Nature**: Randomly select the Nature from either parent.
-        2. **Moves**: Combine all moves from both parents, remove duplicates, and
-           then randomly select up to 4 moves, ensuring consistency.
-        3. **EVs**: Average the EVs for each stat from the parents. Cap each
-           stat at 252 and then normalize the total EV sum to MAX_EVS.
-        4. **Custom-Only (Stats/Types)**: For custom Pokémon, average base stats
-           and re-normalize to MAX_BASE_STATS. Randomly select 1 or 2 types 
-           from the combined set of parent types.
-        """
         child = PokemonGenome(self.base_pokemon_data, self.config_data, random_init=False)
         child.nature = random.choice([p1.nature, p2.nature])
         combined_moves = list(set(p1.moves + p2.moves))

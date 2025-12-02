@@ -94,6 +94,8 @@ This file contains no code, only global constants.
     pip install -r requirements.txt
     ```
 
+    You also need to substitute the pokemon.py file from the main folder to the installed library poke-battle-sim/core.
+
 2.  **Run the Application**
     Execute the main script from your terminal:
 
